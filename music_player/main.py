@@ -1,13 +1,14 @@
 import sqlite3  
 from tkinter import filedialog ,ttk 
 import os 
-from tkinter import * 
+from tkinter import *
+from typing import Tuple 
 from PIL import ImageTk , Image
 from pygame import mixer
 from mutagen.mp3 import MP3
 
 class MusicPlayer: 
-    folder = "" 
+    folder = ""   
 
     def __init__(self):
         global _after_function , btn1 , btn2, btn3 , btn4, btn5 , scale1
@@ -51,6 +52,11 @@ class MusicPlayer:
         self.mode_button = Button( self.sidebar , text="M" , font=("Itim 14") , command= self.switch_mode , bg=self.theme_colour)
         self.mode_button.grid(row=2, sticky="nsew" , padx=5, pady=10 , ipadx=5 ) 
         self.class_dataMembers.append( self.mode_button  )
+
+        #creating a button that will add a song in the current db
+        self.add_song_button = Button( self.sidebar, text="~", font=("Itim 14"), command = self.add_single_song , bg = self.theme_colour)
+        self.add_song_button.grid(row=4, sticky="nsew", padx=5, pady=10, ipadx=5 )
+        self.class_dataMembers.append( self.add_song_button )
 
         #creating a main frame that will hold all the songs 
         self.basic_frame = Frame(self.base ,bg=self.theme_colour, width=1100  )
@@ -139,6 +145,21 @@ class MusicPlayer:
             self.songs_list.append( lbl )
             lbl.pack(fill=X , expand=1)
         
+    def add_single_song(self):
+        print("song added")
+
+        for widgets in self.dumper: 
+            widgets.destroy() 
+
+        self.music_queue = [] 
+        MusicPlayer.song = filedialog.askopenfilename()
+        if( self.song != '' ):            
+            if( self.song.split('.')[-1] == "mp3" ):
+                self.con.execute(f"""INSERT INTO MP01(song,song_path) VALUES("{self.song.split("/")[-1].split(".")[0]}" , "{self.song}");""")
+                self.music_queue.append( self.song )
+                self.con.commit() 
+                self.get_all_music_from_the_folder()
+
     def switch_mode(self):
         global scale1
         if( self.theme_colour.upper() == "WHITE" ):
@@ -355,20 +376,48 @@ class MusicPlayer:
         self.cur.execute("SELECT song FROM MP01")
         files = self.cur.fetchall()
 
+        # adding all the song Strings to a tuple to remove duplicate elements
+        ls = [] 
+
         for file in files: 
-            for x in file:
-                if(x!= "" ):   
-                    lbl = Label(self.second_frame, text = x  , anchor="w" , width= 154 ,pady=6 , padx=10 )
-                    lbl.bind("<Button-1>" , lambda e: self.getinfo(e) ) 
-                    if( self.c_flag == 1 ):
-                        lbl.configure(bg="#e3e3e3" , fg = "Black" , activeforeground = "Black" , activebackground="#e3e3e3" )
-                        self.c_flag= 0 
-                    else: 
-                        lbl.configure(bg=self.theme_colour , fg="BLACK" , activeforeground = "BLACK" , activebackground="WHITE" )
-                        self.c_flag= 1 
-                    self.class_dataMembers.append(lbl)
-                    self.songs_list.append( lbl )
-                    lbl.pack(fill=X , expand=1)
+            for x in file: 
+                ls.append(x)
+
+        # removing duplicates 
+        res = []
+        for i in ls:
+            if i not in res:
+                res.append(i)
+
+        for i in res: 
+            if( i != "" ):
+                lbl = Label(self.second_frame, text = i  , anchor="w" , width= 154 ,pady=6 , padx=10 )
+                lbl.bind("<Button-1>" , lambda e: self.getinfo(e) ) 
+                if( self.c_flag == 1 ):
+                    lbl.configure(bg="#e3e3e3" , fg = "Black" , activeforeground = "Black" , activebackground="#e3e3e3" )
+                    self.c_flag= 0 
+                else: 
+                    lbl.configure(bg=self.theme_colour , fg="BLACK" , activeforeground = "BLACK" , activebackground="WHITE" )
+                    self.c_flag= 1 
+                self.class_dataMembers.append(lbl)
+                self.songs_list.append( lbl )
+                lbl.pack(fill=X , expand=1)
+
+
+        # for file in files : 
+        #     for x in file :
+        #         if(x != "" ):   
+        #             lbl = Label(self.second_frame, text = x  , anchor="w" , width= 154 ,pady=6 , padx=10 )
+        #             lbl.bind("<Button-1>" , lambda e: self.getinfo(e) ) 
+        #             if( self.c_flag == 1 ):
+        #                 lbl.configure(bg="#e3e3e3" , fg = "Black" , activeforeground = "Black" , activebackground="#e3e3e3" )
+        #                 self.c_flag= 0 
+        #             else: 
+        #                 lbl.configure(bg=self.theme_colour , fg="BLACK" , activeforeground = "BLACK" , activebackground="WHITE" )
+        #                 self.c_flag= 1 
+        #             self.class_dataMembers.append(lbl)
+        #             self.songs_list.append( lbl )
+        #             lbl.pack(fill=X , expand=1)
 
         self.my_canvas.config( yscrollcommand = self.vertical_scr.set ) 
 
@@ -393,7 +442,7 @@ class MusicPlayer:
 
         for file in files_in_the_folder:
             if( file.split('.')[-1] == "mp3" ):
-                self.con.execute(f"""INSERT INTO MP01(song,song_path) VALUES("{file}" , "{MusicPlayer.folder+'/'+file}");""")
+                self.con.execute(f"""INSERT INTO MP01(song,song_path) VALUES("{file.split('.')[0]}" , "{MusicPlayer.folder+'/'+file}");""")
                 self.music_queue.append( MusicPlayer.folder+'/'+file)
         self.con.commit() 
         self.get_all_music_from_the_folder()
